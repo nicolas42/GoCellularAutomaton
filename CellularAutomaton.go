@@ -1,22 +1,31 @@
-// Example of Cellular Automaton Rule 30
-// The bit pattern of 30 is "00011110"
-// So the 4th, 5th, 6, and 7th patterns get a "1" below their middle value.
+// One Dimensional Cellular Automaton Image Maker
+//
+// Explanation of Cellular Automatons by Wolfram Mathworld
+// http://mathworld.wolfram.com/CellularAutomaton.html
+//
+// Examples of Rules
+//
+// Rule 30
+// "111" "110" "101" "100" "011" "010" "001" "000"		// enumeration of 3 bits
+//   0     0     0     1     1     1     1     0   		// bit pattern of rule number - 30
+//
+// Rule 2
 // "111" "110" "101" "100" "011" "010" "001" "000"
-//   0     0     0     1     1     1     1     0
-// This continues until the bottom of the image
-// graphical representation of rule 30
+//   0     0     0     0     0     0     1     0
+// 
+// As the program moves along a horizontal line of the image it writes the corresponding value
+// to the matched 3 bit value. It writes it below the central value.
+// It does this for all lines to hopefully generate a pretty picture.
+// 
+// Here's a graphical representation of rule 30
 // http://mathworld.wolfram.com/images/eps-gif/ElementaryCARule030_1000.gif
 //
-// interesting cellular automatons
+// Some interesting cellular automatons that I've found
 // [30 45 57 60 67 73 90 91 107 110 124 129 131 135 137 147 150]
 //
+// Go Images tutorial
 // http://www.pheelicks.com/2013/10/intro-to-images-in-go-part-1/
 
-//	bugfix 8-mar-2016
-//	defer outFile.Close() changed to outFile.Close() 
-// 	"too many open files" error
-//	deferred calls are only executed when the function exits. 
-// 	source: https://groups.google.com/forum/#!topic/golang-nuts/7yXXjgcOikM
 
 package main
 
@@ -53,7 +62,7 @@ func main() {
 		log.Print("Saving image to: ", outFilename)
 		png.Encode(outFile, img)
 		
-		outFile.Close() // removed defer - "too many open files" error
+		outFile.Close() // removed defer - "too many open files" error at ~252 files
 	}
 	
 	fmt.Println( time.Since(t1) )
