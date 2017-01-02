@@ -1,5 +1,6 @@
 # GoCellularAutomaton
 
+<pre>
 // Graphical representation of Rule 30
 // http://mathworld.wolfram.com/images/eps-gif/ElementaryCARule030_1000.gif
 //
@@ -30,3 +31,4 @@
 //
 // Example of sync waitgroup usage example of goroutines that I used
 // http://stackoverflow.com/questions/19208725/example-for-sync-waitgroup-correct
+</pre>
