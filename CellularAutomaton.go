@@ -1,150 +1,161 @@
-// One Dimensional Cellular Automaton Image Maker
-//
-// Explanation of Cellular Automatons by Wolfram Mathworld
-// http://mathworld.wolfram.com/CellularAutomaton.html
-//
-// Examples of Rules
-//
-// Rule 30
-// "111" "110" "101" "100" "011" "010" "001" "000"		// enumeration of 3 bits
-//   0     0     0     1     1     1     1     0   		// bit pattern of rule number - 30
-//
-// Rule 2
-// "111" "110" "101" "100" "011" "010" "001" "000"
-//   0     0     0     0     0     0     1     0
-// 
-// As the program moves along a horizontal line of the image it writes the corresponding value
-// to the matched 3 bit value. It writes it below the central value.
-// It does this for all lines to hopefully generate a pretty picture.
-// 
-// Here's a graphical representation of rule 30
+// Graphical representation of Rule 30
 // http://mathworld.wolfram.com/images/eps-gif/ElementaryCARule030_1000.gif
 //
-// Some interesting cellular automatons that I've found
+//  Example of Cellular Automaton Rule 30
+// The bit pattern of 30 is "00011110"
+// So the 4th, 5th, 6, and 7th patterns get a "1" below their middle value.
+// "111" "110" "101" "100" "011" "010" "001" "000"
+//   0     0     0     1     1     1     1     0
+// This continues until the bottom of the image
+//
+// interesting cellular automatons
 // [30 45 57 60 67 73 90 91 107 110 124 129 131 135 137 147 150]
 //
-// Go Images tutorial
 // http://www.pheelicks.com/2013/10/intro-to-images-in-go-part-1/
 
+//	bugfix 8-mar-2016
+//	defer outFile.Close() changed to outFile.Close()
+// 	"too many open files" error
+//	deferred calls are only executed when the function exits.
+// 	source: https://groups.google.com/forum/#!topic/golang-nuts/7yXXjgcOikM
+//
+// 1-1-2017
+// Tried using goroutines to speed it up with some success.
+// At first I just put the writePNG function in a goroutine.
+// This reduced execution time to about 75% of what it was which was nice.
+// After this I tried putting the whole thing into goroutines using the sync library
+// This proved even better even on a macbook pro with only 2 cores.
+//
+// Example of sync waitgroup usage example of goroutines that I used
+// http://stackoverflow.com/questions/19208725/example-for-sync-waitgroup-correct
 
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
 	"log"
 	"os"
 	"strconv"
-	"fmt"
+	"sync"
 	"time"
 )
 
-type myColor color.RGBA
-
 func main() {
-
 	t1 := time.Now()
 
-	interestingRules := []int{30,45,57,60,67,73,90,91,107,110,124,129,131,135,137,147,150}
-	for _, rule := range interestingRules {
+	if true {
+		// black := color.RGBA{0, 0, 0, 255}
+		// red := color.RGBA{255, 0, 0, 255}
+		yellow := color.RGBA{255, 255, 0, 255}
+		orange := color.RGBA{255, 150, 10, 255}
+		width := 1000 // height is half width
 
-//	for rule := 0; rule <= 255; rule+=1 {	
-		img := makeCellularAutomaton(rule)
-
-		// Output file	
-		outFilename := fmt.Sprintf("cellularAutomaton%v.png", rule)
-		outFile, err := os.Create(outFilename)
-		if err != nil {
-			log.Fatal(err)
+		var wg sync.WaitGroup
+		for _, rule := range []int{30, 45, 57, 60, 67, 73, 90, 91, 107, 110, 124, 129, 131, 135, 137, 147, 150} {
+			// for rule := 0; rule <= 255; rule += 1 {
+			wg.Add(1)
+			go goRoutine(rule, width, yellow, orange, &wg)
+			// img := makeCellularAutomaton(rule, width, yellow, orange)      // height is half width
+			// go writePNG(fmt.Sprintf("cellularAutomaton%v.png", rule), img) // goroutine makes it significantly faster
 		}
-		
-		log.Print("Saving image to: ", outFilename)
-		png.Encode(outFile, img)
-		
-		outFile.Close() // removed defer - "too many open files" error at ~252 files
+		wg.Wait()
 	}
-	
-	fmt.Println( time.Since(t1) )
+
+	fmt.Println(time.Since(t1))
+	fmt.Println("Done")
+}
+
+func goRoutine(rule, width int, yellow, orange color.RGBA, wg *sync.WaitGroup) {
+
+	img := makeCellularAutomaton(rule, width, yellow, orange)   // height is half width
+	writePNG(fmt.Sprintf("cellularAutomaton%v.png", rule), img) // goroutine makes it significantly faster
+	wg.Done()
 
 }
 
-func makeCellularAutomaton( ruleNumber int ) image.Image {
+func writePNG(outFilename string, Img image.Image) {
 
-	// Make yellow image
-	yellow := color.RGBA{ 255, 255, 0, 255 }
-	orange := color.RGBA{ 255, 150,10,255 }
-
-	width, height := 1000,500
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-
-	size := img.Bounds().Size()
-	for x := 0; x < size.X; x++ {
-		for y := 0; y < size.Y; y++ {
-			img.Set(x, y, yellow)
-		}
+	outFile, err := os.Create(outFilename)
+	if err != nil {
+		log.Fatal(err)
 	}
-	img.Set(int(size.X / 2),0, orange)
 
+	log.Print("Saving image to: ", outFilename)
+	png.Encode(outFile, Img)
 
-	// Make 8 bit pattern	of number e.g. 2 => "00000010", 
-	b8 := []byte(strconv.FormatUint(uint64(ruleNumber), 2))
-	for len(b8)<8 {
-		b8 = append([]byte{'0'}, b8...)
-	}
-	// fmt.Println(string(b8))
+	outFile.Close() // removed defer - "too many open files" error
+}
 
+func makeCellularAutomaton(RuleNumber, width int, color1, color2 color.RGBA) image.Image {
 
-	// Make Rule
-	rule := []color.RGBA{} 
-	for i:= 0; i<8; i+=1 {
-		if b8[i] == '1' {
-			b3 := []byte(strconv.FormatUint(uint64(i), 2))
-			for len(b3)<3 {
-				b3 = append([]byte{'0'}, b3...)
+	Img := image.NewRGBA(image.Rect(0, 0, width, int(width/2)))
+	ImgSize := Img.Bounds().Size()
+	Rule := []color.RGBA{} // 3 pixel pattern to match
+
+	// Color in image - fill with color1 and put a dot top center of color2
+	if true {
+		for x := 0; x < ImgSize.X; x++ {
+			for y := 0; y < ImgSize.Y; y++ {
+				Img.Set(x, y, color1)
 			}
-			// The bit patterns generated here (the b3s) are inverted
-			// that is 001 instead of 110 and so on
-			// It would be nice to fix this since it makes debugging unclear
-			// fmt.Println(string(b3))
+		}
+		Img.Set(int(ImgSize.X/2), 0, color2)
+	}
 
-			for _, char := range b3 {
-				if char == '0' {
-					rule = append(rule, orange)
-				} else {
-					rule = append(rule, yellow)
+	// Make Rule - Make a set of 3 pixel patterns that will be used to generate the image
+	if true {
+
+		// Make 8 bit pattern of RuleNumber e.g. 2 => "00000010",
+		b8 := []byte(strconv.FormatUint(uint64(RuleNumber), 2))
+		for len(b8) < 8 {
+			b8 = append([]byte{'0'}, b8...)
+		}
+
+		// Cellular Automaton Rule 30 Example
+		// The bit pattern of 30 is "00011110"
+		// so the 4th, 5th, 6, and 7th patterns get a "1" below their middle value.
+		// "111" "110" "101" "100" "011" "010" "001" "000"
+		//   0     0     0     1     1     1     1     0
+		// These are what will define the rule
+		// rule30 = ["100","011","010","001"]
+		// where the zeroes and ones are actually different colored pixels.
+
+		for i := 0; i < 8; i += 1 {
+			if b8[7-i] == '1' { // since numbers grow from right to left
+				b3 := []byte(strconv.FormatUint(uint64(i), 2))
+				for len(b3) < 3 {
+					b3 = append([]byte{'0'}, b3...)
+				}
+				for _, char := range b3 {
+					if char == '0' {
+						Rule = append(Rule, color1)
+					} else {
+						Rule = append(Rule, color2)
+					}
 				}
 			}
 		}
 	}
-	
-//	for _, col := range rule {
-//		fmt.Println(rule[0] == orange)
-//		fmt.Print(myColor(col), " ")
-//	}
 
-	// Generate Cellular Automaton
-	for y := 0; y < size.Y; y++ {
-		for x := 0; x < size.X; x++ {
-			for i := 0; i<len(rule)-2; i+=3 {
-				if rule[i] == img.At(x,y) && rule[i+1] == img.At(x+1,y) && rule[i+2] == img.At(x+2,y) {
-					img.Set(x+1, y+1, orange)
+	// Draw Cellular Automaton Image
+	for y := 0; y < ImgSize.Y; y++ {
+		for x := 0; x < ImgSize.X; x++ {
+			for i := 0; i < len(Rule)-2; i += 3 {
+				if Rule[i] == Img.At(x, y) && Rule[i+1] == Img.At(x+1, y) && Rule[i+2] == Img.At(x+2, y) {
+					Img.Set(x+1, y+1, color2)
 				}
 			}
 		}
 	}
-	
-	return img
+
+	return Img
 }
 
-func ( c myColor ) String() string {
+type myColor color.RGBA
+
+func (c myColor) String() string {
 	return fmt.Sprintf("%v.%v.%v", c.R, c.G, c.B)
-}
-
-func Reverse(s string) string {
-    runes := []rune(s)
-    for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
-        runes[i], runes[j] = runes[j], runes[i]
-    }
-    return string(runes)
 }
